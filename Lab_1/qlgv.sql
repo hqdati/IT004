@@ -3,7 +3,8 @@ CREATE DATABASE QuanLyGiaoVu;
 USE QuanLyGiaoVu;
 
 ---------------- Cau 1 -----------------
-
+-- Tạo quan hệ và khai báo tất cả các ràng buộc khóa chính, khóa ngoại. Thêm vào 3 thuộc tính 
+-- GHICHU, DIEMTB, XEPLOAI cho quan hệ HOCVIEN. 
 
 -------------------------- KHOA ----------------------
 CREATE TABLE KHOA (
@@ -113,6 +114,8 @@ ALTER TABLE HOCVIEN
 ADD XEPLOAI VARCHAR(10);
 
 --------------------------- Cau 2 --------------------
+-- Mã học viên là một chuỗi 5 ký tự, 3 ký tự đầu là mã lớp, 2 ký tự cuối cùng là số thứ tự học 
+-- viên trong lớp. VD: “K1101” 
 ALTER TABLE HOCVIEN
 ADD CONSTRAINT MAHV_CHECK 
 CHECK (
@@ -122,6 +125,7 @@ CHECK (
 );
 
 --------------------------- Cau 3 --------------------
+-- Thuộc tính GIOITINH chỉ có giá trị là “Nam” hoặc “Nu”. 
 ALTER TABLE GIAOVIEN 
 ADD CONSTRAINT GIOITINH_CHECK_GIAOVIEN CHECK (GIOITINH IN('Nam', 'Nu'));
 
@@ -129,11 +133,13 @@ ALTER TABLE HOCVIEN
 ADD CONSTRAINT GIOITINH_CHECK_HOCVIEN CHECK (GIOITINH IN('Nam', 'Nu'));
 
 -------------------------- Cau 4 ---------------------
+-- Điểm số của một lần thi có giá trị từ 0 đến 10 và cần lưu đến 2 số lẽ (VD: 6.22).
 ALTER TABLE KETQUATHI
 ADD CONSTRAINT DIEM_CHECK 
 CHECK (DIEM >= 0 AND DIEM <= 10);
 
 -------------------------- Cau 5 ---------------------
+-- Kết quả thi là “Dat” nếu điểm từ 5 đến 10  và “Khong dat” nếu điểm nhỏ hơn 5. 
 ALTER TABLE KETQUATHI
 DROP COLUMN KQUA;
 
@@ -146,13 +152,16 @@ ADD KQUA AS (
 
 
 --------------------------- Cau 6 --------------------
+-- Học viên thi một môn tối đa 3 lần. 
 ALTER TABLE KETQUATHI
 ADD CONSTRAINT LANTHI_CHECK CHECK (LANTHI <= 3);
 
 --------------------------- Cau 7 --------------------
+-- Học kỳ chỉ có giá trị từ 1 đến 3. 
 ALTER TABLE GIANGDAY
 ADD CONSTRAINT HOCKY_CHECK CHECK(HOCKY BETWEEN 1 AND 3);
 
 --------------------------- Cau 8 --------------------
+-- Học vị của giáo viên chỉ có thể là “CN”, “KS”, “Ths”, ”TS”, ”PTS”. 
 ALTER TABLE GIAOVIEN
 ADD CONSTRAINT HOCVI_CHECK CHECK(HOCVI IN('CN', 'KS', 'Ths', 'TS', 'PTS'));
