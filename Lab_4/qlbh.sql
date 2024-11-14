@@ -1,4 +1,4 @@
-﻿USE QuanLyBanHang;
+USE QuanLyBanHang;
 
 ------------------------ Bai Tap 1 ----------------------------
 -- Phần III bài tập QuanLyBanHang từ câu 20 đến câu 30
@@ -152,3 +152,170 @@ WHERE SP.NUOCSX = 'Trung Quoc'
 		) Subquery
 		ORDER BY Subquery.GiaSanPham DESC
 );
+
+----------------------------- Bai Tap 3 -----------------------------
+-- Phần III bài tập QuanLyBanHang từ câu 31 đến câu 45
+
+---------------------------- Cau 32 ---------------------------
+-- Tính tổng số sản phẩm do “Trung Quoc” sản xuất. 
+SELECT COUNT(DISTINCT SP.MASP) AS [TongSoSanPham]
+FROM SANPHAM AS SP
+WHERE SP.NUOCSX = 'Trung Quoc';
+
+---------------------------- Cau 33 --------------------------
+-- Tính tổng số sản phẩm của từng nước sản xuất
+SELECT SP.NUOCSX AS [NuocSanXuat],
+	   COUNT(DISTINCT SP.MASP) AS [SoLuongSanPham]
+FROM SANPHAM AS SP
+GROUP BY SP.NUOCSX;
+
+---------------------------- Cau 34 --------------------------
+-- Với từng nước sản xuất, tìm giá bán cao nhất, thấp nhất, trung bình của các sản phẩm. 
+SELECT SP.NUOCSX AS [NuocSanXuat],
+	   MAX(SP.GIA) AS [GiaBanCaoNhat],
+	   MIN(SP.GIA) AS [GiaBanThapNhat],
+	   AVG(SP.GIA) AS [GiaBanTrungBinh]
+FROM SANPHAM AS SP
+GROUP BY SP.NUOCSX;
+
+--------------------------- Cau 35 ----------------------------
+-- Tính doanh thu bán hàng mỗi ngày.
+SELECT HD.NGHD AS [NgayHoaDon],
+	   SUM(HD.TRIGIA) AS [DoanhThu]
+FROM HOADON AS HD
+GROUP BY HD.NGHD;
+
+--------------------------- Cau 36 ----------------------------
+-- Tính tổng số lượng của từng sản phẩm bán ra trong tháng 10/2006.
+SELECT CTHD.MASP AS [MaSanPham],
+	   SUM(CTHD.SL) AS [TongSoLuong] 
+FROM HOADON AS HD
+JOIN CTHD AS CTHD
+ON HD.SOHD = CTHD.SOHD
+WHERE MONTH(HD.NGHD) = 10
+	AND YEAR(HD.NGHD) = 2006
+GROUP BY CTHD.MASP;
+
+-------------------------- Cau 37 ----------------------------
+-- Tính doanh thu bán hàng của từng tháng trong năm 2006. 
+SELECT MONTH(HD.NGHD) AS [Thang],
+	   SUM(HD.TRIGIA) AS [DoanhThu]
+FROM HOADON AS HD
+WHERE YEAR(HD.NGHD) = 2006
+GROUP BY MONTH(HD.NGHD);
+
+--------------------------- Cau 38 --------------------------
+-- Tìm hóa đơn có mua ít nhất 4 sản phẩm khác nhau.
+SELECT HD.SOHD AS [SoHoaDon],
+	   COUNT(DISTINCT CTHD.MASP) AS [SoLuongSanPham]
+FROM HOADON AS HD
+JOIN CTHD AS CTHD
+ON HD.SOHD = CTHD.SOHD
+GROUP BY HD.SOHD
+HAVING COUNT(DISTINCT CTHD.MASP) >= 4;
+
+---------------------------- Cau 39 ------------------------
+-- Tìm hóa đơn có mua 3 sản phẩm do “Viet Nam” sản xuất (3 sản phẩm khác nhau). 
+SELECT CTHD.SOHD AS [SoHoaDon]
+FROM CTHD AS CTHD
+JOIN SANPHAM AS SP
+ON CTHD.MASP = SP.MASP
+WHERE SP.NUOCSX = 'Viet Nam'
+GROUP BY CTHD.SOHD
+HAVING COUNT(DISTINCT CTHD.MASP) = 3;
+
+----------------------------  Cau 40 -------------------------
+-- Tìm khách hàng (MAKH, HOTEN) có số lần mua hàng nhiều nhất. 
+SELECT KH.MAKH AS [MaKH],
+	   KH.HOTEN AS [HoTen],
+	   COUNT(HD.SOHD) AS [SoLanMuaHang]
+FROM KHACHHANG AS KH
+JOIN HOADON AS HD
+ON KH.MAKH = HD.MAKH
+GROUP BY KH.MAKH, KH.HOTEN
+HAVING COUNT(HD.SOHD) >= ALL (
+	SELECT COUNT(HD2.SOHD)
+	FROM HOADON AS HD2
+	GROUP BY HD2.MAKH
+);
+
+------------------------------ Cau 41 -------------------------
+-- Tháng mấy trong năm 2006, doanh số bán hàng cao nhất ? 
+
+-- C1: Sử dụng Subquery
+SELECT MONTH(HD.NGHD) AS [ThangCoDoanhSoCaoNhat]
+FROM HOADON AS HD
+WHERE YEAR(HD.NGHD) = 2006
+GROUP BY MONTH(HD.NGHD)
+HAVING SUM(HD.TRIGIA) >= ALL (
+	SELECT SUM(HD2.TRIGIA)
+	FROM HOADON AS HD2
+	WHERE YEAR(HD2.NGHD) = 2006
+	GROUP BY MONTH(HD2.NGHD)
+);
+
+-- C2: Tối ưu hơn
+SELECT TOP 1 MONTH(HD.NGHD) AS [ThangCoDoanhSoCaoNhat]
+FROM HOADON AS HD
+WHERE YEAR(HD.NGHD) = 2006
+GROUP BY MONTH(HD.NGHD)
+ORDER BY SUM(HD.TRIGIA) DESC;
+
+------------------------------ Cau 42 --------------------------
+-- Tìm sản phẩm (MASP, TENSP) có tổng số lượng bán ra thấp nhất trong năm 2006.
+
+-- C1: Sử dụng Subquery
+SELECT SP.MASP AS [MaSanPham],
+	   SP.TENSP AS [TenSanPham]
+FROM SANPHAM AS SP
+JOIN CTHD AS CTHD
+ON SP.MASP = CTHD.MASP
+JOIN HOADON AS HD
+ON HD.SOHD = CTHD.SOHD
+WHERE YEAR(HD.NGHD) = 2006
+GROUP BY SP.MASP, SP.TENSP
+HAVING SUM(CTHD.SL) <= ALL (
+	SELECT SUM(CTHD2.SL)
+	FROM CTHD AS CTHD2
+	JOIN HOADON AS HD2
+	ON HD2.SOHD = CTHD2.SOHD
+	WHERE YEAR(HD2.NGHD) = 2006
+	GROUP BY CTHD2.MASP
+);
+
+-- C2: Tối ưu hơn
+SELECT TOP 1 SP.MASP AS [MaSanPham],
+		     SP.TENSP AS [TenSanPham]
+FROM SANPHAM AS SP
+JOIN CTHD AS CTHD
+ON SP.MASP = CTHD.MASP
+JOIN HOADON AS HD
+ON HD.SOHD = CTHD.SOHD
+WHERE YEAR(HD.NGHD) = 2006
+GROUP BY SP.MASP, SP.TENSP
+ORDER BY SUM(CTHD.SL) ASC;
+
+------------------------------- Cau 44 ---------------------------
+-- Tìm nước sản xuất sản xuất ít nhất 3 sản phẩm có giá bán khác nhau. 
+
+-- C1: Sử dụng Subquery
+SELECT SP.NUOCSX AS [NuocSanXuat]
+FROM SANPHAM AS SP
+GROUP BY SP.NUOCSX
+HAVING EXISTS (
+	SELECT *
+	FROM SANPHAM AS SP2
+	WHERE SP2.NUOCSX = SP.NUOCSX -- Bỏ phần này là sai vì thực hiện truy vấn với mọi nước
+	GROUP BY SP2.NUOCSX
+	HAVING COUNT(DISTINCT SP2.MASP) >= 3
+		AND COUNT(DISTINCT SP2.GIA) >= 3
+);
+
+-- C2: Tối ưu hơn
+SELECT SP.NUOCSX AS [NuocSanXuat]
+FROM SANPHAM AS SP
+GROUP BY SP.NUOCSX
+HAVING COUNT(DISTINCT SP.MASP) >= 3
+   AND COUNT(DISTINCT SP.GIA) >= 3;
+
+
