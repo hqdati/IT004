@@ -354,4 +354,17 @@ HAVING COUNT(DISTINCT SP.MASP) >= 3
 -------------------------------- Cau 45 ----------------------------
 -- *Trong 10 khách hàng có doanh số cao nhất, tìm khách hàng có số lần mua hàng nhiều nhất. 
 
-
+SELECT TOP 1 KH.MAKH AS [MaKhachHang],
+			 KH.HOTEN AS [HoTen],
+			 KH.DOANHSO AS [DoanhSo],
+			 COUNT(HD.SOHD) AS [SoLanMuaHang]
+FROM KHACHHANG AS KH
+JOIN HOADON AS HD
+ON HD.MAKH = KH.MAKH
+WHERE KH.MAKH IN (
+	SELECT TOP 10 KH2.MAKH
+	FROM KHACHHANG AS KH2
+	ORDER BY KH2.DOANHSO DESC
+)
+GROUP BY KH.MAKH, KH.HOTEN, KH.DOANHSO
+ORDER BY COUNT(HD.SOHD) DESC;
