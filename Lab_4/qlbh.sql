@@ -156,6 +156,16 @@ WHERE SP.NUOCSX = 'Trung Quoc'
 ----------------------------- Bai Tap 3 -----------------------------
 -- Phần III bài tập QuanLyBanHang từ câu 31 đến câu 45
 
+---------------------------- Cau 31 ---------------------------
+-- * In ra danh sách 3 khách hàng có doanh số cao nhất (sắp xếp theo kiểu xếp hạng). 
+
+-- Sử dụng ROW_NUMBER()
+SELECT TOP 3 
+    ROW_NUMBER() OVER (ORDER BY KH.DOANHSO DESC) AS Rank,
+	KH.MAKH AS [MaKhachHang],
+	KH.HOTEN AS [HoTenKhachHang]
+FROM KHACHHANG AS KH;
+
 ---------------------------- Cau 32 ---------------------------
 -- Tính tổng số sản phẩm do “Trung Quoc” sản xuất. 
 SELECT COUNT(DISTINCT SP.MASP) AS [TongSoSanPham]
@@ -295,6 +305,29 @@ WHERE YEAR(HD.NGHD) = 2006
 GROUP BY SP.MASP, SP.TENSP
 ORDER BY SUM(CTHD.SL) ASC;
 
+------------------------------- Cau 43 ---------------------------
+-- *Mỗi nước sản xuất, tìm sản phẩm (MASP,TENSP) có giá bán cao nhất. 
+
+/* Query sắp xếp theo Ranking giá bán cao nhất cho mỗi nước
+
+SELECT SP.MASP, SP.TENSP, SP.NUOCSX, SP.GIA,
+		ROW_NUMBER() OVER(PARTITION BY SP.NUOCSX ORDER BY SP.GIA DESC) AS Rank
+FROM SANPHAM AS SP
+	
+*/
+
+-- Sử dụng ROW_NUMBER()
+SELECT Subquery.MASP AS [MaSanPham],
+	   Subquery.TENSP AS [TenSanPham],
+	   Subquery.NUOCSX AS [NuocSanXuat],
+	   Subquery.GIA AS [Gia]
+FROM (
+	SELECT SP.MASP, SP.TENSP, SP.NUOCSX, SP.GIA,
+		ROW_NUMBER() OVER(PARTITION BY SP.NUOCSX ORDER BY SP.GIA DESC) AS Rank
+	FROM SANPHAM AS SP
+) Subquery
+WHERE Subquery.Rank = 1;
+
 ------------------------------- Cau 44 ---------------------------
 -- Tìm nước sản xuất sản xuất ít nhất 3 sản phẩm có giá bán khác nhau. 
 
@@ -317,5 +350,8 @@ FROM SANPHAM AS SP
 GROUP BY SP.NUOCSX
 HAVING COUNT(DISTINCT SP.MASP) >= 3
    AND COUNT(DISTINCT SP.GIA) >= 3;
+
+-------------------------------- Cau 45 ----------------------------
+-- *Trong 10 khách hàng có doanh số cao nhất, tìm khách hàng có số lần mua hàng nhiều nhất. 
 
 
