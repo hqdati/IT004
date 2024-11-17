@@ -1,4 +1,4 @@
-﻿USE QuanLyGiaoVu;
+USE QuanLyGiaoVu;
 
 ------------------------------ Bai Tap 2 ---------------------------------
 -- Phần III bài tập QuanLyGiaoVu từ câu 19 đến câu 25
@@ -107,3 +107,134 @@ WHERE NOT EXISTS (
 )
 GROUP BY HV.MAHV, (HV.HO + ' ' + HV.TEN)
 HAVING COUNT(DISTINCT KQ.MAMH) <= 3;
+
+------------------------------- Cau 26 ----------------------------
+-- Tìm học viên (mã học viên, họ tên) có số môn đạt điểm 9,10 nhiều nhất. 
+SELECT TOP 1 WITH TIES
+	HV.MAHV AS [Mã học viên],
+	(HV.HO + ' ' + HV.TEN) AS [Họ tên]
+FROM (
+	SELECT KQ.MAHV,
+		   COUNT(DISTINCT KQ.MAMH) AS [Số lượng điểm 9 và 10]
+	FROM KETQUATHI AS KQ
+	WHERE KQ.DIEM IN (9, 10)
+	GROUP BY KQ.MAHV
+) AS Subquery
+JOIN HOCVIEN AS HV
+	ON HV.MAHV = Subquery.MAHV
+ORDER BY Subquery.[Số lượng điểm 9 và 10] DESC;
+
+------------------------------- Cau 27 -----------------------------
+-- Trong từng lớp, tìm học viên (mã học viên, họ tên) có số môn đạt điểm 9,10 nhiều nhất. 
+SELECT L.MALOP AS [Mã Lớp],
+	   HV.MAHV AS [Mã Học Viên],
+	   (HV.HO + ' ' + HV.TEN) AS [Họ tên],
+	   COUNT(DISTINCT KQ.MAMH) AS [Số lượng điểm 9, 10]
+FROM KETQUATHI AS KQ
+JOIN HOCVIEN AS HV
+	ON KQ.MAHV = HV.MAHV
+JOIN LOP AS L
+	ON L.MALOP = HV.MALOP
+WHERE KQ.DIEM IN (9,10)
+GROUP BY L.MALOP, HV.MAHV, (HV.HO + ' ' + HV.TEN)
+HAVING COUNT(DISTINCT KQ.MAMH) >= ALL (
+	SELECT COUNT(DISTINCT KQ.MAMH)
+	FROM KETQUATHI AS KQ2
+	JOIN HOCVIEN AS HV2
+		ON KQ2.MAHV = HV2.MAHV
+	JOIN LOP AS L2
+		ON L2.MALOP = HV2.MALOP
+	WHERE KQ2.DIEM IN (9,10)
+		AND L.MALOP = L2.MALOP -- Đảm bảo kiểm tra trong cùng 1 lớp 
+							   -- --> Tìm ra học viên có số lượng điểm 9, 10 nhiều nhất trong 1 lớp
+	GROUP BY HV2.MAHV
+);
+
+----------------------------- Cau 28 ---------------------------
+-- Trong từng học kỳ của từng năm, mỗi giáo viên phân công dạy bao nhiêu môn học, bao 
+-- nhiêu lớp. 
+SELECT GD.NAM AS [Năm],
+	   GD.HOCKY AS [Học Kỳ],
+	   GD.MAGV AS [Mã Giáo Viên],
+	   COUNT(DISTINCT GD.MAMH) AS [Số lượng môn học],
+	   COUNT(DISTINCT GD.MALOP) AS [Số lượng lớp] 
+FROM GIANGDAY AS GD
+GROUP BY GD.NAM, GD.HOCKY, GD.MAGV;
+
+----------------------------- Cau 29 ---------------------------
+-- Trong từng học kỳ của từng năm, tìm giáo viên (mã giáo viên, họ tên) giảng dạy nhiều nhất. 
+SELECT GD.NAM AS [Nam],
+	   GD.HOCKY AS [HocKy],
+	   GV.MAGV AS [MaGiaoVien],
+	   GV.HOTEN AS [HoTen],
+	   COUNT(DISTINCT GD.MALOP) AS [SoLuongLop]
+FROM GIANGDAY AS GD 
+JOIN GIAOVIEN AS GV
+ON GD.MAGV = GV.MAGV
+GROUP BY GD.NAM, GD.HOCKY, GV.MAGV, GV.HOTEN
+HAVING COUNT(DISTINCT GD.MALOP) = (
+	SELECT MAX(Subquery.SoLuong)
+	FROM (
+		SELECT COUNT(DISTINCT GD2.MALOP) AS [SoLuong]
+		FROM GIANGDAY AS GD2
+		WHERE GD2.NAM = GD.NAM			-- Đảm bảo cùng 1 năm
+			AND GD2.HOCKY = GD.HOCKY	-- Đảm bảo cùng 1 học kỳ
+		GROUP BY GD2.MAGV
+	) AS Subquery
+);
+
+---------------------------- Cau 30 --------------------------
+-- Tìm môn học (mã môn học, tên môn học) có nhiều học viên thi không đạt (ở lần thi thứ 1) 
+-- nhất.
+
+/* Subquery tìm số lượng học viên thi không đạt ở lân 1 ở từng mỗi môn học
+	
+	SELECT MH.MAMH AS [MaMonHoc],
+		   MH.TENMH AS [TenMonHoc],
+		   COUNT(KQ.MAHV) AS [SoLuongHocVien]
+	FROM MONHOC AS MH
+	JOIN KETQUATHI AS KQ
+	ON MH.MAMH = KQ.MAMH
+	WHERE KQ.KQUA = 'Khong dat'
+		AND KQ.LANTHI = 1
+	GROUP BY MH.MAMH, MH.TENMH
+
+*/
+
+SELECT TOP 1 WITH TIES Subquery.MaMonHoc, Subquery.TenMonHoc
+FROM (
+	SELECT MH.MAMH AS [MaMonHoc],
+		   MH.TENMH AS [TenMonHoc],
+	       COUNT(KQ.MAHV) AS [SoLuongHocVien]
+	FROM MONHOC AS MH
+	JOIN KETQUATHI AS KQ
+	ON MH.MAMH = KQ.MAMH
+	WHERE KQ.KQUA = 'Khong dat'
+		AND KQ.LANTHI = 1
+	GROUP BY MH.MAMH, MH.TENMH
+) Subquery
+ORDER BY Subquery.SoLuongHocVien DESC;
+
+--------------------------- Cau 31 ------------------------
+-- Tìm học viên (mã học viên, họ tên) thi môn nào cũng đạt (chỉ xét lần thi thứ 1).
+
+/* Subquery truy vấn học viên thi không đạt ở lần thi 1
+
+SELECT *  
+FROM KETQUATHI AS KQ
+WHERE KQ.LANTHI = 1
+	AND KQ.KQUA = 'Khong dat'
+
+*/
+
+-- Sử dụng NOT EXISTS
+SELECT HV.MAHV AS [MaHocVien],
+	   (Hv.HO + ' ' + HV.TEN) AS [HoTen]
+FROM HOCVIEN AS HV
+WHERE NOT EXISTS (
+	SELECT *  
+	FROM KETQUATHI AS KQ
+	WHERE KQ.LANTHI = 1
+		AND KQ.KQUA = 'Khong dat'
+		AND HV.MAHV = KQ.MAHV -- Đảm bảo học viên đang xét không có môn nào không đạt ở lần 1
+);
