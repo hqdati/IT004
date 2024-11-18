@@ -238,3 +238,88 @@ WHERE NOT EXISTS (
 		AND KQ.KQUA = 'Khong dat'
 		AND HV.MAHV = KQ.MAHV -- Đảm bảo học viên đang xét không có môn nào không đạt ở lần 1
 );
+
+------------------------------- Cau 32 -------------------------------
+-- * Tìm học viên (mã học viên, họ tên) thi môn nào cũng đạt (chỉ xét lần thi sau cùng). 
+SELECT HV.MAHV AS [MaHocVien],
+	   (HV.HO + ' ' + HV.TEN) AS [HoTen]
+FROM HOCVIEN AS HV
+WHERE NOT EXISTS (
+	SELECT *
+	FROM MONHOC AS MH
+	WHERE NOT EXISTS (
+		SELECT *
+		FROM KETQUATHI AS KQ
+		WHERE KQ.MAHV = HV.MAHV
+			AND KQ.MAMH = MH.MAMH
+			AND KQ.KQUA = 'Dat'
+			AND KQ.LANTHI = (			-- Truy vấn lần thi sau cùng
+				SELECT MAX(KQ2.LANTHI)
+				FROM KETQUATHI AS KQ2
+				WHERE KQ2.MAHV = KQ.MAHV
+					AND KQ2.MAMH = KQ.MAMH
+			)
+	)
+);
+
+---------------------------- Cau 33 --------------------------
+-- * Tìm học viên (mã học viên, họ tên) đã thi tất cả các môn đều đạt (chỉ xét lần thi thứ 1). 
+SELECT HV.MAHV AS [MaHocVien],
+       (HV.HO + ' ' + HV.TEN) AS [HoTen]
+FROM HOCVIEN AS HV
+WHERE NOT EXISTS (
+	SELECT *
+	FROM MONHOC AS MH
+	WHERE NOT EXISTS (
+		SELECT *
+		FROM KETQUATHI AS KQ
+		WHERE KQ.KQUA = 'Dat'
+			AND KQ.LANTHI = 1		-- Đảm bảo thi 'Dat' ở lần thi thứ 1
+			AND KQ.MAHV = HV.MAHV
+			AND KQ.MAMH = MH.MAMH
+	)
+);
+
+----------------------------- Cau 34 ------------------------
+-- * Tìm học viên (mã học viên, họ tên) đã thi tất cả các môn đều đạt  (chỉ xét lần thi sau cùng). 
+SELECT HV.MAHV AS [MaHocVien],
+	   (HV.HO + ' ' + HV.TEN) AS [HoTen]
+FROM HOCVIEN AS HV
+WHERE NOT EXISTS (
+	SELECT *
+	FROM MONHOC AS MH
+	WHERE NOT EXISTS (
+		SELECT *
+		FROM KETQUATHI AS KQ
+		WHERE KQ.MAHV = HV.MAHV
+			AND KQ.MAMH = MH.MAMH
+			AND KQ.KQUA = 'Dat'
+			AND KQ.LANTHI = (			-- Truy vấn lần thi sau cùng
+				SELECT MAX(KQ2.LANTHI)
+				FROM KETQUATHI AS KQ2
+				WHERE KQ2.MAHV = KQ.MAHV
+					AND KQ2.MAMH = KQ.MAMH
+			)
+	)
+);
+
+-------------------------------- Cau 35 --------------------------------
+-- ** Tìm học viên (mã học viên, họ tên) có điểm thi cao nhất trong từng môn (lấy điểm ở lần 
+-- thi sau cùng). 
+SELECT KQ.MAMH AS [MaMonHoc],
+	   HV.MAHV AS [MaHocVien],
+	   (HV.HO + ' ' + HV.TEN) AS [HoTen]
+FROM HOCVIEN AS HV
+JOIN KETQUATHI AS KQ
+ON KQ.MAHV = HV.MAHV
+WHERE KQ.DIEM >= ALL ( -- Tìm điểm cao nhất
+	SELECT KQ2.DIEM
+	FROM KETQUATHI AS KQ2
+	WHERE KQ2.MAMH = KQ.MAMH
+) AND KQ.LANTHI = ( -- Tìm kiếm điểm cao nhất lần thi sau cùng
+	SELECT MAX(KQ3.LANTHI)
+	FROM KETQUATHI AS KQ3
+	WHERE KQ3.MAMH = KQ.MAMH
+		AND KQ3.MAHV = KQ.MAHV
+)
+GROUP BY KQ.MAMH, HV.MAHV, (HV.HO + ' ' + HV.TEN);
