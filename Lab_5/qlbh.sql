@@ -1,4 +1,4 @@
-﻿USE QuanLyBanHang;
+USE QuanLyBanHang;
 
 --------------------------- Bai Tap 1 ---------------------------
 -- Phần I bài tập QuanLyBanHang từ câu 11 đến câu 14
@@ -96,3 +96,115 @@ VALUES (1025,'07-22-2006', 'KH11', 'NV05',5000);
 UPDATE HOADON 
 SET NGHD = '07-18-2006'
 WHERE SOHD = 1025;
+
+----------------------------------- Cau 13 ---------------------------------
+-- Mỗi một hóa đơn phải có ít nhất một chi tiết hóa đơn. 
+CREATE TRIGGER trig_CheckCTHD_insert_update
+ON HOADON 
+AFTER INSERT, UPDATE
+AS 
+BEGIN
+	IF EXISTS ( -- Kiểm tra tồn tại một hóa đơn không có chi tiết hóa đơn
+		SELECT 1
+		FROM inserted I
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM CTHD 
+			WHERE CTHD.SOHD = I.SOHD
+		)
+	)
+	BEGIN
+		RAISERROR('Hóa đơn phải có ít nhất 1 chi tiết hóa đơn', 16, 1);
+		ROLLBACK TRANSACTION;
+	END
+END
+
+-------------------------------- Test Trigger ------------------------------
+
+-- INSERT 
+-- Thêm vào một bản ghi SOHD (1026) có NGHD là 22-07-2006 vào bảng HOADON
+INSERT INTO HOADON(SOHD, NGHD, MAKH, MANV, TRIGIA)
+VALUES (1026,'07-22-2006', 'KH11', 'NV05',5000);
+----> Kết quả: Gây lỗi "Hóa đơn phải có ít nhất một chi tiết hóa đơn."
+
+-- UPDATE
+-- Sử dụng HOADON 1001 đã có trong bảng HOADON và thỏa mãn ràng buộc toàn vẹn (tồn tại trong bảng CTHD)
+----> UPDATE: thay đổi SOHD thành 1026
+UPDATE HOADON
+SET SOHD = 1026
+WHERE SOHD = 1001;
+----> Kết quả: Gây ra lỗi, vì vi phạm ràng buộc toàn vẹn khóa ngoại (FK) 
+--             nên sẽ kiểm tra điều kiện của khóa ngoại (FK) trước 
+
+
+-----------------------------  Cau 14 -----------------------------
+-- Trị giá của một hóa đơn là tổng thành tiền (số lượng*đơn giá) của các chi tiết thuộc hóa đơn đó. 
+
+------------------------------ Lưu ý ----------------------------
+-- Vì mọi thao tác thêm (INSERT), sửa (UPDATE), xóa (DELETE) đều 
+-- thực hiện trên bảng CTHD, nên ta sẽ cập nhật lại TRIGIA trong bảng HOADON mỗi khi 
+-- một bản ghi được thêm (INSERT), sửa (UPDATE), hoặc xóa (DELETE) trong bảng CTHD
+
+CREATE TRIGGER trig_TriGia_insert_update_delete
+ON CTHD
+AFTER INSERT, UPDATE, DELETE 
+AS
+BEGIN
+	-- Danh sách các hóa đơn bị ảnh hưởng từ inserted hoặc deleted
+	DECLARE @AffectedInvoices TABLE (SOHD INT)
+
+	-- Thêm vào bảng AffectedInvoices các hóa đơn bị ảnh hưởng
+	INSERT INTO @AffectedInvoices
+	SELECT I.SOHD
+	FROM inserted I
+	UNION
+	SELECT D.SOHD
+	FROM deleted D
+
+	-- Cập nhật lại TRIGIA
+	UPDATE HOADON 
+	SET HOADON.TRIGIA = ( -- Cập nhật lại TRIGIA với các hóa đơn bị ảnh hưởng
+		SELECT SUM(CTHD.SL * SP.GIA)
+		FROM CTHD 
+		JOIN SANPHAM AS SP
+		ON CTHD.MASP = SP.MASP
+		WHERE HOADON.SOHD = CTHD.SOHD
+	)
+	WHERE HOADON.SOHD IN ( -- Đảm bảo cập nhật đúng các hóa đơn bị ảnh hưởng, nằm trong 2 bảng (inserted và deleted)
+		SELECT SOHD
+		FROM @AffectedInvoices
+	)
+END
+
+------------------------- Test Trigger ---------------------------
+
+---------------------------- INSERT ------------------------------
+SELECT * FROM HOADON WHERE SOHD = 1001; -- Ban đầu TRIGIA = 320000
+
+-- Thêm 10 sản phẩm TV03 vào SOHD 1001
+INSERT INTO CTHD (SOHD, MASP, SL) 
+VALUES (1001, 'TV03', 10);
+
+-- Sau khi thêm, TRIGIA = 350000
+SELECT * FROM HOADON WHERE SOHD = 1001;
+
+--------------------------- UPDATE -------------------------------
+SELECT * FROM HOADON WHERE SOHD = 1001; -- Ban đầu TRIGIA = 350000
+
+-- Sửa số lượng của MASP 'TV03' thành 15
+UPDATE CTHD 
+SET SL = 15
+WHERE SOHD = 1001 AND MASP = 'TV03';
+
+-- Sau khi sửa, TRIGIA = 365000
+SELECT * FROM HOADON WHERE SOHD = 1001;
+
+--------------------------- DELETE --------------------------------
+SELECT * FROM HOADON WHERE SOHD = 1001; -- Ban đầu TRIGIA = 365000
+
+-- Xóa bản ghi có SOHD = 1001 và MASP = 'TV03' trong bảng CTHD
+DELETE FROM CTHD
+WHERE SOHD = 1001 AND MASP = 'TV03';
+
+-- Sau khi xóa, TRIGIA = 320000
+SELECT * FROM HOADON WHERE SOHD = 1001;
