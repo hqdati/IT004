@@ -208,3 +208,36 @@ WHERE SOHD = 1001 AND MASP = 'TV03';
 
 -- Sau khi xóa, TRIGIA = 320000
 SELECT * FROM HOADON WHERE SOHD = 1001;
+
+--------------------------------- Cau 15 ------------------------------
+-- Doanh số của một khách hàng là tổng trị giá các hóa đơn mà khách hàng thành viên đó đã mua.
+CREATE TRIGGER trig_DoanhSo_KhachHang_insert_update_delete
+ON HOADON
+FOR INSERT, UPDATE, DELETE
+AS 
+BEGIN
+	-- Danh sách các hóa đơn bị ảnh hưởng từ inserted hoặc deleted
+	DECLARE @AffectedInvoices TABLE (MAKH CHAR(4))
+
+	-- Thêm vào bảng AffectedInvoices các hóa đơn bị ảnh hưởng
+	INSERT INTO @AffectedInvoices
+	SELECT DISTINCT I.MAKH
+	FROM inserted I
+	WHERE I.MAKH IS NOT NULL
+	UNION
+	SELECT DISTINCT D.MAKH
+	FROM deleted D
+	WHERE D.MAKH IS NOT NULL
+
+	-- Cập nhật lại Doanh số của khách hàng
+	UPDATE KHACHHANG
+	SET DOANHSO = (
+		SELECT SUM(HD.TRIGIA)
+		FROM HOADON AS HD
+		WHERE HD.MAKH = KHACHHANG.MAKH
+	) 
+	WHERE KHACHHANG.MAKH IN (
+		SELECT MAKH
+		FROM @AffectedInvoices
+	)
+END
