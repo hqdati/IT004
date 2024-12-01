@@ -1,4 +1,4 @@
-﻿USE QuanLyGiaoVu;
+USE QuanLyGiaoVu;
 
 -------------------------------- Bai Tap 2 ----------------------------------
 -- Phần I bài tập QuanLyGiaoVu câu 9, 10, và từ câu 15 đến câu 24
@@ -37,7 +37,7 @@ BEGIN
 		RAISERROR('Lớp trưởng của một lớp phải là học viên của lớp đó', 16, 1);
 		ROLLBACK TRANSACTION;
 	END
-END
+END;
 
 ---------------------------------------- Cau 10 ----------------------------------------
 -- Trưởng khoa phải là giáo viên thuộc khoa và có học vị “TS” hoặc “PTS”.
@@ -72,4 +72,49 @@ BEGIN
 		RAISERROR('Trường khoa phải là giáo viên thuộc khoa và có học vị ("TS", "PTS")', 16, 1);
 		ROLLBACK TRANSACTION;
 	END
-END
+END;
+
+------------------------------------- Cau 15 ---------------------------------
+-- Học viên chỉ được thi một môn học nào đó khi lớp của học viên đã học xong môn học này.
+CREATE TRIGGER trig_canHaveTest_insert_update 
+ON KETQUATHI
+FOR INSERT, UPDATE
+AS 
+BEGIN
+	-- Kiểm tra học viên có thi trước khi lớp dạy môn đó kết thúc không
+	IF EXISTS (
+		SELECT 1
+		FROM HOCVIEN AS HV
+		JOIN GIANGDAY AS GD
+		ON HV.MALOP = GD.MALOP
+		JOIN inserted I
+		ON I.MAHV = HV.MAHV AND I.MAMH = GD.MAMH -- Đảm bảo xác định được kiểm tra đúng môn mà học viên đang học
+		WHERE I.NGTHI < GD.DENNGAY
+	)
+	BEGIN
+		RAISERROR('Lớp của học viên chưa học xong môn học này, nên học viên không được thi', 16, 1);
+		ROLLBACK TRANSACTION;
+	END
+END;
+
+------------------------------------ Cau 16 ----------------------------------
+-- Mỗi học kỳ của một năm học, một lớp chỉ được học tối đa 3 môn. 
+CREATE TRIGGER trig_numberOfSubjects_insert_update
+ON GIANGDAY
+FOR INSERT, UPDATE
+AS
+BEGIN
+	-- Đảm bảo 1 lớp trong một học kì của một năm học chỉ được học tối đa 3 môn
+	IF EXISTS (
+		SELECT 1
+		FROM GIANGDAY AS GD
+		JOIN inserted I
+		ON GD.MALOP = I.MALOP AND GD.NAM = I.NAM AND GD.HOCKY = I.HOCKY
+		GROUP BY GD.MALOP, GD.NAM, GD.HOCKY
+		HAVING COUNT(DISTINCT GD.MAMH) > 3
+	)
+	BEGIN
+		RAISERROR('Mỗi học kỳ của một năm học, một lớp chỉ được học tối đa 3 môn', 16, 1);
+		ROLLBACK TRANSACTION;
+	END
+END;
