@@ -118,3 +118,126 @@ BEGIN
 		ROLLBACK TRANSACTION;
 	END
 END;
+
+----------------------------------- Cau 17 ------------------------------------
+-- Sỉ số của một lớp bằng với số lượng học viên thuộc lớp đó. 
+
+-- Tạo trigger đảm bảo sỉ số của lớp khi thêm hoặc xóa bằng số lượng học viên
+CREATE TRIGGER trig_ClassAttendants_insert_update
+ON LOP
+FOR INSERT, UPDATE
+AS 
+BEGIN
+	IF EXISTS (
+		SELECT 1
+		FROM inserted I
+		WHERE I.SISO <> (
+			SELECT COUNT(DISTINCT MAHV)
+			FROM HOCVIEN AS HV
+			WHERE I.MALOP = HV.MALOP
+		)
+	)
+	BEGIN
+		RAISERROR('Sỉ số của một lớp phải bằng số lượng học viên thuộc lớp đó', 16, 1);
+		ROLLBACK TRANSACTION;
+	END
+END;
+
+-- Tạo trigger đảm bảo khi học viên đó chuyển lớp, hoặc nghỉ học, hoặc mới nhập học
+-- thì sĩ số của lớp vẫn được đảm bảo
+CREATE TRIGGER trg_updateAttendants_HOCVIEN_insert_udpate_delete
+ON HOCVIEN
+FOR INSERT, UPDATE, DELETE
+AS
+BEGIN
+	DECLARE @AffectedNumberOfAttendants TABLE (MALOP CHAR(3));
+
+	-- Lấy các lớp bị ảnh hưởng khi thêm, xóa, và sửa học viên
+	INSERT INTO @AffectedNumberOfAttendants
+	SELECT i.MALOP
+	FROM inserted AS i
+	UNION
+	SELECT d.MALOP
+	FROM deleted AS d
+
+	-- Cập nhật lại các lớp bị ảnh hưởng
+	UPDATE LOP
+	SET LOP.SISO = (
+		SELECT COUNT(DISTINCT HV.MAHV)
+		FROM HOCVIEN AS HV
+		WHERE HV.MALOP = LOP.MALOP
+	)
+	WHERE LOP.MALOP IN (
+		SELECT MALOP
+		FROM @AffectedNumberOfAttendants
+	)
+END;
+
+-------------------------------- Cau 18 ---------------------------
+
+-------------------------------- Cau 19 ---------------------------
+-- Các giáo viên có cùng học vị, học hàm, hệ số lương thì mức lương bằng nhau.
+CREATE TRIGGER trig_TeacherWage_insert_update
+ON GIAOVIEN
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    IF EXISTS (
+        -- Kiểm tra xem có giáo viên nào có cùng học vị, học hàm, và hệ số lương nhưng mức lương khác nhau
+        SELECT 1
+        FROM inserted AS I
+        JOIN GIAOVIEN AS GV
+        ON GV.HOCHAM = I.HOCHAM 
+		   AND GV.HOCVI = I.HOCVI 
+		   AND GV.HESO = I.HESO
+		   -- AND GV.MAGV = I.MAGV 
+		   ----> Nếu thêm dòng này thì chỉ kiểm tra với các giáo viên mới (MAGV) mới được thêm vào, cập nhật
+		   ----> Không kiểm tra với các bản ghi đã có sẵn trong bảng GIAOVIEN
+
+        WHERE GV.MUCLUONG <> I.MUCLUONG -- Kiểm tra mức lương khác nhau
+        AND GV.MAGV <> I.MAGV -- Đảm bảo không so sánh với chính bản thân giáo viên vừa cập nhật
+    )
+    BEGIN
+        RAISERROR('Giáo viên có cùng học vị, học hàm, hệ số lương thì mức lương phải bằng nhau', 16, 1);
+        ROLLBACK TRANSACTION;
+    END
+END;
+
+
+-------------------------------- Cau 20 ---------------------------------
+-- Học viên chỉ được thi lại (lần thi > 1) khi điểm của lần thi trước đó dưới 5.
+CREATE TRIGGER trig_canHaveTestAgain_HOCVIEN_insert_update_delete
+ON KETQUATHI
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+	DECLARE @AffectedStudent TABLE (MAHV CHAR(5), LANTHI TINYINT, MAMH VARCHAR(10));
+
+	INSERT INTO @AffectedStudent
+	SELECT I.MAHV, I.LANTHI, I.MAMH
+	FROM inserted AS I
+	UNION 
+	SELECT D.MAHV, D.LANTHI, D.MAMH
+	FROM deleted AS D;
+
+	IF EXISTS (
+		SELECT 1
+		FROM KETQUATHI AS KQ
+		JOIN @AffectedStudent AS affected
+		ON affected.MAHV = KQ.MAHV AND affected.MAMH = KQ.MAMH
+		WHERE affected.LANTHI > 1 -- LANTHI > 1 (thi lại)
+			  AND EXISTS (
+				-- Kiểm tra lần thi trước đó của học viên
+				SELECT 1
+				FROM KETQUATHI AS prev_KQ
+				WHERE prev_KQ.MAHV = KQ.MAHV
+				  AND prev_KQ.MAMH = KQ.MAMH
+				  AND prev_KQ.LANTHI = affected.LANTHI - 1 -- Kiểm tra lần thi trước
+				  AND prev_KQ.DIEM >= 5 -- Điểm lần thi trước >= 5
+			  )
+	)
+	BEGIN
+		RAISERROR('Học viên chỉ được thi lại (lần thi > 1) khi điểm lần thi trước đó dưới 5', 16, 1);
+		ROLLBACK TRANSACTION;
+	END 
+END;
