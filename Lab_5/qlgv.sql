@@ -241,3 +241,119 @@ BEGIN
 		ROLLBACK TRANSACTION;
 	END 
 END;
+
+------------------------------- Cau 21 -------------------------------
+-- Ngày thi của lần thi sau phải lớn hơn ngày thi của lần thi trước (cùng học viên, cùng môn 
+-- học).
+CREATE TRIGGER trig_ngayThiLanTiepTheo_insert_update_delete
+ON KETQUATHI
+FOR INSERT, UPDATE, DELETE
+AS 
+BEGIN
+	DECLARE @AffectedStudent TABLE (MAHV CHAR(5), MAMH VARCHAR(10), LANTHI TINYINT)
+
+	INSERT INTO @AffectedStudent
+	SELECT I.MAHV, I.MAMH, I.LANTHI
+	FROM inserted I
+	UNION
+	SELECT D.MAHV, D.MAMH, D.LANTHI
+	FROM deleted D
+
+	IF EXISTS (
+		SELECT 1
+		FROM KETQUATHI AS KQ
+		JOIN @AffectedStudent AS affected
+		ON KQ.MAHV = affected.MAHV AND KQ.MAMH = affected.MAMH
+		WHERE KQ.LANTHI > 1 
+			AND EXISTS (
+				SELECT 1
+				FROM KETQUATHI AS prev_KQ
+				WHERE KQ.MAHV = prev_KQ.MAHV
+					AND KQ.MAMH = prev_KQ.MAMH
+					AND KQ.LANTHI - 1 = prev_KQ.LANTHI
+					AND KQ.NGTHI <= prev_KQ.NGTHI
+			)
+	)
+	BEGIN
+		RAISERROR('Ngày thi của lần thi sau phải lớn hơn ngày thi của lần thi trước', 16, 1);
+		ROLLBACK TRANSACTION;
+	END
+END;
+
+------------------------------ Cau 22 ---------------------------
+-- Học viên chỉ được thi những môn mà lớp của học viên đó đã học xong. 
+CREATE TRIGGER trig_CanHaveTest_insert_update
+ON KETQUATHI
+AFTER INSERT, UPDATE
+AS 
+BEGIN
+	IF EXISTS (
+		SELECT 1
+		FROM inserted AS I
+		JOIN HOCVIEN AS HV
+			ON HV.MAHV = I.MAHV
+		JOIN GIANGDAY AS GD
+			ON GD.MALOP = HV.MALOP AND 
+			   GD.MAMH = I.MAMH
+		WHERE I.NGTHI < GD.DENNGAY
+	)
+	BEGIN
+		RAISERROR('Học viên chỉ được thi những môn mà lớp của học viên đó đã học xong', 16, 1);
+		ROLLBACK TRANSACTION;
+	END
+END;
+
+------------------------------ Cau 23 -----------------------------
+-- Khi phân công giảng dạy một môn học, phải xét đến thứ tự trước sau giữa các môn học (sau 
+-- khi học xong những môn học phải học trước mới được học những môn liền sau). 
+CREATE TRIGGER trig_GiangDay_insert_update
+ON GIANGDAY 
+FOR INSERT, UPDATE
+AS 
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1
+		FROM inserted AS I
+		JOIN DIEUKIEN AS DK
+		ON I.MAMH = DK.MAMH
+		WHERE DK.MAMH_TRUOC IN (
+			SELECT GD.MAMH
+			FROM GIANGDAY AS GD
+			WHERE GD.MALOP = I.MALOP AND I.MAMH <> GD.MAMH
+		) AND DK.MAMH_TRUOC IS NOT NULL
+	)
+	BEGIN
+		RAISERROR('Môn học tiên quyết chưa được học xong!', 16, 1);
+		ROLLBACK TRANSACTION;
+	END 
+END;
+
+-------------------------- Cau 24 ------------------------------
+-- Giáo viên chỉ được phân công dạy những môn thuộc khoa giáo viên đó phụ trách. 
+CREATE TRIGGER trig_phanCongGiangDay_insert_update
+ON GIANGDAY
+FOR INSERT, UPDATE
+AS
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1
+		FROM inserted AS I
+		WHERE I.MAGV IN (
+			SELECT GV.MAGV
+			FROM GIAOVIEN AS GV
+			JOIN MONHOC AS MH
+			ON GV.MAKHOA = MH.MAKHOA
+				AND GV.MAGV = I.MAGV
+		) AND I.MAMH IN (
+			SELECT MH.MAMH
+			FROM GIAOVIEN AS GV
+			JOIN MONHOC AS MH
+			ON GV.MAKHOA = MH.MAKHOA
+				AND GV.MAGV = I.MAGV
+		)
+	)	
+	BEGIN
+		RAISERROR('Giáo viên chỉ được phân công dạy những môn thuộc khoa giáo viên đó phụ trách', 16, 1);
+		ROLLBACK TRANSACTION;
+	END
+END;
