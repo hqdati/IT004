@@ -106,7 +106,7 @@ WHERE NOT EXISTS (
 		AND KQ2.KQUA = 'Dat'
 )
 GROUP BY HV.MAHV, (HV.HO + ' ' + HV.TEN)
-HAVING COUNT(DISTINCT KQ.MAMH) <= 3;
+HAVING COUNT(DISTINCT KQ.MAMH) > 3;
 
 ------------------------------- Cau 26 ----------------------------
 -- Tìm học viên (mã học viên, họ tên) có số môn đạt điểm 9,10 nhiều nhất. 
@@ -241,25 +241,24 @@ WHERE NOT EXISTS (
 
 ------------------------------- Cau 32 -------------------------------
 -- * Tìm học viên (mã học viên, họ tên) thi môn nào cũng đạt (chỉ xét lần thi sau cùng). 
+
+-- Lưu ý: Thi môn nào cũng đạt nghĩa là những môn mà học viên đó thi, 
+-- ==> Những môn đó đề đạt ở lần thi cuối cùng
+
 SELECT HV.MAHV AS [MaHocVien],
 	   (HV.HO + ' ' + HV.TEN) AS [HoTen]
 FROM HOCVIEN AS HV
 WHERE NOT EXISTS (
 	SELECT *
-	FROM MONHOC AS MH
-	WHERE NOT EXISTS (
-		SELECT *
-		FROM KETQUATHI AS KQ
-		WHERE KQ.MAHV = HV.MAHV
-			AND KQ.MAMH = MH.MAMH
-			AND KQ.KQUA = 'Dat'
-			AND KQ.LANTHI = (			-- Truy vấn lần thi sau cùng
-				SELECT MAX(KQ2.LANTHI)
-				FROM KETQUATHI AS KQ2
-				WHERE KQ2.MAHV = KQ.MAHV
-					AND KQ2.MAMH = KQ.MAMH
-			)
-	)
+	FROM KETQUATHI AS KQ
+	WHERE KQ.MAHV = HV.MAHV
+		AND KQ.KQUA = 'Khong dat'
+		AND KQ.LANTHI = (				-- Truy vấn lần thi sau cùng
+			SELECT MAX(KQ2.LANTHI)
+			FROM KETQUATHI AS KQ2
+			WHERE KQ2.MAHV = KQ.MAHV
+				AND KQ2.MAMH = KQ.MAMH
+		)
 );
 
 ---------------------------- Cau 33 --------------------------
@@ -322,4 +321,5 @@ WHERE KQ.DIEM >= ALL ( -- Tìm điểm cao nhất
 	WHERE KQ3.MAMH = KQ.MAMH
 		AND KQ3.MAHV = KQ.MAHV
 )
-GROUP BY KQ.MAMH, HV.MAHV, (HV.HO + ' ' + HV.TEN);
+GROUP BY KQ.MAMH, HV.MAHV, (HV.HO + ' ' + HV.TEN)
+ORDER BY KQ.MAMH;
