@@ -250,7 +250,7 @@ FROM KETQUATHI AS KQ
 JOIN HOCVIEN AS HV
 ON KQ.MAHV = HV.MAHV
 WHERE KQ.MAMH = 'CTRR' AND HV.MALOP = 'K12'
-ORDER BY HV.HO ASC, HV.TEN ASC;
+ORDER BY HV.TEN ASC, HV.HO ASC;
 
 ------------------------------- Cau 3 -------------------------------------
 -- In ra danh sách những học viên (mã học viên, họ tên) và những môn học mà học viên đó thi lần thứ nhất đã đạt.
