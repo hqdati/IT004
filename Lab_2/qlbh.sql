@@ -185,9 +185,6 @@ WHERE NUOCSX = 'Trung Quoc' AND GIA <= 10000;
 -- 1/1/2007 có doanh số từ 10.000.000 trở lên hoặc khách hàng đăng ký thành viên từ 1/1/2007 trở về 
 -- sau có doanh số từ 2.000.000 trở lên (cho quan hệ KHACHHANG1). 
 
-ALTER TABLE KHACHHANG1
-ADD LOAIKH VARCHAR(10);
-
 UPDATE KHACHHANG1
 SET LOAIKH = 'Vip'
 WHERE (NGDK < '2007-01-01' AND DOANHSO >= 10000000)
