@@ -214,7 +214,7 @@ WHERE SP.DVT IN ('cay', 'quyen');
 
 SELECT SP.MASP, SP.TENSP
 FROM SANPHAM AS SP
-WHERE SP.MASP LIKE 'B_01';
+WHERE SP.MASP LIKE 'B%01';
 
 ----------------------------- Cau 4 -------------------------
 -- In ra danh sách các sản phẩm (MASP,TENSP) do “Trung Quốc” sản xuất có giá từ 30.000 đến 
