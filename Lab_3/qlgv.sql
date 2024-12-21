@@ -24,6 +24,8 @@ WHERE EXISTS (
 -- môn học đều có hệ số 1 và nếu học viên thi một môn nhiều lần, chỉ lấy điểm của lần thi sau 
 -- cùng). 
 
+
+-- C1:
 UPDATE HOCVIEN
 SET DIEMTB = (
 	SELECT AVG(KQ.DIEM)
@@ -37,6 +39,19 @@ SET DIEMTB = (
 		AND KQ2.MAMH = KQ.MAMH
 		AND KQ2.LANTHI > KQ.LANTHI
 ));
+
+-- C2:
+UPDATE HOCVIEN
+SET HOCVIEN.DIEMTB = (
+	SELECT AVG(KQ.DIEM) 
+	FROM KETQUATHI AS KQ
+	WHERE KQ.MAHV = HOCVIEN.MAHV
+		AND KQ.LANTHI >= ALL ( -- Tìm lần thi cuối cùng
+			SELECT KQ2.LANTHI
+			FROM KETQUATHI AS KQ2
+			WHERE KQ2.MAHV = HOCVIEN.MAHV AND KQ.MAMH = KQ2.MAMH
+		)
+);
 
 --------------------------- Cau 3 -------------------------------
 -- Cập nhật giá trị cho cột GHICHU là “Cam thi” đối với trường hợp: học viên có một môn bất 
