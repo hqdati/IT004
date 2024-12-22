@@ -350,6 +350,8 @@ WHERE NOT EXISTS (
 -------------------------- Cau 15 ---------------------------
 -- Tìm họ tên các học viên thuộc lớp “K11” thi một môn bất kỳ quá 3 lần vẫn “Khong dat” 
 -- hoặc thi lần thứ 2 môn CTRR được 5 điểm. 
+
+-- C1:
 SELECT (HV.HO + ' ' + HV.TEN) AS [HoTenHocVien]
 FROM HOCVIEN AS HV
 WHERE HV.MALOP = 'K11' 
@@ -370,6 +372,24 @@ WHERE HV.MALOP = 'K11'
 		AND KQ2.DIEM = 5
 	)
 );
+
+-- C2: 
+SELECT (HV.HO + ' ' + HV.TEN) AS [HoTen]
+FROM HOCVIEN AS HV
+JOIN KETQUATHI AS KQ
+ON KQ.MAHV = HV.MAHV
+WHERE HV.MALOP = 'K11'
+	AND KQ.LANTHI >= 3
+	AND KQ.KQUA = 'Khong dat'
+UNION
+SELECT (HV.HO + ' ' + HV.TEN) AS [HoTen]
+FROM HOCVIEN AS HV
+JOIN KETQUATHI AS KQ
+ON KQ.MAHV = HV.MAHV
+WHERE KQ.LANTHI = 2
+	AND KQ.MAMH = 'CTRR'
+	AND KQ.DIEM = 5
+	AND HV.MALOP = 'K11';
 
 --------------------------- Cau 16 -----------------------------
 -- Tìm họ tên giáo viên dạy môn CTRR cho ít nhất hai lớp trong cùng một học kỳ của một năm 
