@@ -155,6 +155,7 @@ WHERE L.MALOP = 'K11'
 -- Tìm họ tên lớp trưởng của các lớp mà giáo viên có tên “Nguyen To Lan” dạy môn “Co So 
 -- Du Lieu”. 
 
+-- C1:
 SELECT (HV.HO + ' ' + HV.TEN) AS [HoTen]
 FROM HOCVIEN AS HV
 WHERE HV.MAHV IN (
@@ -170,9 +171,26 @@ WHERE HV.MAHV IN (
 		) AND GD.MAMH IN (
 			SELECT MH.MAMH
 			FROM MONHOC AS MH
-			WHERE MH.TENMH = 'Co So Du Lieu'
+			WHERE MH.TENMH = 'Co so du lieu'
 		)
 	)
+);
+
+-- C2:
+SELECT (HV.HO + ' ' + HV.TEN) AS [HoTenLopTruong]
+FROM LOP AS L
+JOIN HOCVIEN AS HV
+ON L.TRGLOP = HV.MAHV
+WHERE EXISTS (
+	SELECT *
+	FROM GIANGDAY AS GD
+	JOIN GIAOVIEN AS GV
+	ON GD.MAGV = GV.MAGV
+	JOIN MONHOC AS MH
+	ON MH.MAMH = GD.MAMH
+	WHERE GV.HOTEN = 'Nguyen To Lan'
+		AND MH.TENMH = 'Co so du lieu'
+		AND L.MALOP = GD.MALOP
 );
 
 --------------------------- Cau 9 --------------------------
