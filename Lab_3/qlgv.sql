@@ -171,7 +171,7 @@ WHERE HV.MAHV IN (
 		) AND GD.MAMH IN (
 			SELECT MH.MAMH
 			FROM MONHOC AS MH
-			WHERE MH.TENMH = 'Co so du lieu'
+			WHERE MH.TENMH = 'Co So Du Lieu'
 		)
 	)
 );
@@ -189,7 +189,7 @@ WHERE EXISTS (
 	JOIN MONHOC AS MH
 	ON MH.MAMH = GD.MAMH
 	WHERE GV.HOTEN = 'Nguyen To Lan'
-		AND MH.TENMH = 'Co so du lieu'
+		AND MH.TENMH = 'Co So Du Lieu'
 		AND L.MALOP = GD.MALOP
 );
 
