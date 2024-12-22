@@ -278,6 +278,8 @@ WHERE EXISTS (
 ----------------------- Cau 12 ------------------------
 -- Tìm những học viên (mã học viên, họ tên) thi không đạt môn CSDL ở lần thi thứ 1 nhưng 
 -- chưa thi lại môn này. 
+
+-- C1:
 SELECT HV.MAHV AS [MaHocVien],
 	   (HV.Ho + ' ' + HV.TEN) AS [HoTenHocVien]
 FROM HOCVIEN AS HV
@@ -298,6 +300,24 @@ WHERE EXISTS (
 		)
 );
 
+-- C2:
+SELECT HV.MAHV AS [MaHocVien],
+	   (HV.HO + ' ' + HV.TEN) AS [HoTen]
+FROM HOCVIEN AS HV
+WHERE EXISTS (
+	SELECT *
+	FROM KETQUATHI AS KQ
+	WHERE KQ.MAHV = HV.MAHV
+		AND KQ.MAMH = 'CSDL'
+		AND KQ.KQUA = 'Khong dat'
+		AND KQ.LANTHI = 1
+		AND KQ.LANTHI >= ALL (
+			SELECT KQ2.LANTHI
+			FROM KETQUATHI AS KQ2
+			WHERE KQ2.MAHV = KQ.MAHV
+				AND KQ2.MAMH = KQ.MAMH
+		)
+);
 --------------------------- Cau 13 --------------------------
 -- Tìm giáo viên (mã giáo viên, họ tên) không được phân công giảng dạy bất kỳ môn học nào. 
 SELECT GV.MAGV AS [MaGiaoVien],
