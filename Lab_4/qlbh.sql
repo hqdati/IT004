@@ -328,6 +328,16 @@ FROM (
 ) Subquery
 WHERE Subquery.Rank = 1;
 
+-- Sử dụng so sánh bình thường
+SELECT SP.NUOCSX, SP.MASP, SP.TENSP, SP.GIA
+FROM SANPHAM AS SP
+WHERE SP.GIA = (
+	SELECT MAX(SP2.GIA)
+	FROM SANPHAM AS SP2
+	WHERE SP2.NUOCSX = SP.NUOCSX
+	GROUP BY SP2.NUOCSX
+);
+
 ------------------------------- Cau 44 ---------------------------
 -- Tìm nước sản xuất sản xuất ít nhất 3 sản phẩm có giá bán khác nhau. 
 
