@@ -53,6 +53,7 @@ WHERE EXISTS (
 	SELECT *
 	FROM GIAOVIEN AS GV2
 	WHERE GV2.HOCVI IN ('CN', 'KS', 'Ths', 'TS', 'PTS')
+		AND GV2.MAGV = GV.MAGV
 )
 GROUP BY GV.MAKHOA;
 
@@ -67,6 +68,8 @@ GROUP BY KQ.MAMH, KQ.KQUA;
 ----------------------------- Cau 23 ----------------------------
 -- Tìm giáo viên (mã giáo viên, họ tên) là giáo viên chủ nhiệm của một lớp, đồng thời dạy cho 
 -- lớp đó ít nhất một môn học. 
+
+-- C1:
 SELECT GV.MAGV AS [MaGiaoVien],
 	   GV.HOTEN AS [HoTen]
 FROM GIAOVIEN AS GV
@@ -78,8 +81,26 @@ ON GD.MALOP = L.MALOP
 GROUP BY GV.MAGV, GV.HOTEN
 HAVING COUNT(DISTINCT GD.MAMH) >= 1;
 
+-- C2: hay hơn :>
+SELECT GV.MAGV AS [Mã giáo viên],
+	   GV.HOTEN AS [Họ tên]
+FROM GIAOVIEN AS GV
+WHERE EXISTS (
+	SELECT *
+	FROM LOP AS L
+	WHERE L.MAGVCN = GV.MAGV
+		AND EXISTS (
+			SELECT *
+			FROM GIANGDAY AS GD
+			WHERE GD.MAGV = GV.MAGV
+				AND GD.MALOP = L.MALOP
+		)
+);
+
 ----------------------------- Cau 24 ---------------------------
 -- Tìm họ tên lớp trưởng của lớp có sỉ số cao nhất.
+
+-- C1:
 SELECT (Hv.HO + ' ' + HV.TEN) AS [HoTen]
 FROM HOCVIEN AS HV
 JOIN LOP AS L
@@ -89,9 +110,24 @@ WHERE L.SISO >= ALL (
 	FROM LOP AS L2
 );
 
+-- C2: hay hơn :>
+SELECT (HV.HO + ' ' + HV.TEN) AS [Họ tên lớp trưởng]
+FROM HOCVIEN AS HV
+WHERE EXISTS (
+	SELECT *
+	FROM LOP AS L
+	WHERE L.TRGLOP = HV.MAHV
+		AND L.SISO >= ALL (
+			SELECT L2.SISO
+			FROM LOP AS L2
+		)
+);
+
 ------------------------------ Cau 25 ---------------------------
 -- * Tìm họ tên những LOPTRG thi không đạt quá 3 môn (mỗi môn đều thi không đạt ở tất cả 
 -- các lần thi).
+
+-- C1:
 SELECT (HV.HO + ' ' + HV.TEN) AS [HoTen]
 FROM HOCVIEN AS HV
 JOIN LOP AS L
@@ -107,6 +143,29 @@ WHERE NOT EXISTS (
 )
 GROUP BY HV.MAHV, (HV.HO + ' ' + HV.TEN)
 HAVING COUNT(DISTINCT KQ.MAMH) > 3;
+
+-- C2: Vận dụng EXISTS, NOT EXISTS (khá hay) :>
+SELECT (HV.HO + ' ' + HV.TEN) AS [Họ tên lớp trưởng]
+FROM HOCVIEN AS HV
+WHERE EXISTS (
+	SELECT *
+	FROM LOP AS L
+	WHERE L.TRGLOP = HV.MAHV
+) AND EXISTS (
+	SELECT KQ.MAHV
+	FROM KETQUATHI AS KQ
+	WHERE KQ.MAHV = HV.MAHV
+		AND NOT EXISTS (
+			SELECT *
+			FROM KETQUATHI AS KQ2
+			WHERE KQ2.MAMH = KQ.MAMH
+				AND KQ2.MAHV = KQ.MAHV
+				AND KQ.KQUA = 'Dat'
+		)
+	GROUP BY KQ.MAHV 
+	HAVING COUNT(DISTINCT KQ.MAMH) > 3
+);
+
 
 ------------------------------- Cau 26 ----------------------------
 -- Tìm học viên (mã học viên, họ tên) có số môn đạt điểm 9,10 nhiều nhất. 
