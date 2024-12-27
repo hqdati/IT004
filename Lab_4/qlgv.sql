@@ -169,6 +169,8 @@ WHERE EXISTS (
 
 ------------------------------- Cau 26 ----------------------------
 -- Tìm học viên (mã học viên, họ tên) có số môn đạt điểm 9,10 nhiều nhất. 
+
+-- C1:
 SELECT TOP 1 WITH TIES
 	HV.MAHV AS [Mã học viên],
 	(HV.HO + ' ' + HV.TEN) AS [Họ tên]
@@ -183,30 +185,40 @@ JOIN HOCVIEN AS HV
 	ON HV.MAHV = Subquery.MAHV
 ORDER BY Subquery.[Số lượng điểm 9 và 10] DESC;
 
+-- C2:
+SELECT HV.MAHV AS [Mã học viên],
+	   (HV.HO + ' ' + HV.TEN) AS [Họ tên]
+FROM HOCVIEN AS HV
+JOIN KETQUATHI AS KQ
+ON HV.MAHV = KQ.MAHV
+WHERE KQ.DIEM IN (9, 10)
+GROUP BY HV.MAHV, (HV.HO + ' ' + HV.TEN)
+HAVING COUNT(DISTINCT KQ.MAMH) >= ALL (
+	SELECT COUNT(DISTINCT KQ2.MAMH)
+	FROM KETQUATHI AS KQ2
+	WHERE KQ2.DIEM IN (9, 10)
+	GROUP BY KQ2.MAHV
+);
+
 ------------------------------- Cau 27 -----------------------------
 -- Trong từng lớp, tìm học viên (mã học viên, họ tên) có số môn đạt điểm 9,10 nhiều nhất. 
-SELECT L.MALOP AS [Mã Lớp],
-	   HV.MAHV AS [Mã Học Viên],
+SELECT HV.MALOP AS [Mã lớp],
+	   HV.MAHV AS [Mã học viên],
 	   (HV.HO + ' ' + HV.TEN) AS [Họ tên],
 	   COUNT(DISTINCT KQ.MAMH) AS [Số lượng điểm 9, 10]
-FROM KETQUATHI AS KQ
-JOIN HOCVIEN AS HV
-	ON KQ.MAHV = HV.MAHV
-JOIN LOP AS L
-	ON L.MALOP = HV.MALOP
-WHERE KQ.DIEM IN (9,10)
-GROUP BY L.MALOP, HV.MAHV, (HV.HO + ' ' + HV.TEN)
+FROM HOCVIEN AS HV
+JOIN KETQUATHI AS KQ
+ON HV.MAHV = KQ.MAHV
+WHERE KQ.DIEM IN (9, 10)
+GROUP BY HV.MALOP, HV.MAHV, (HV.HO + ' ' + HV.TEN)
 HAVING COUNT(DISTINCT KQ.MAMH) >= ALL (
-	SELECT COUNT(DISTINCT KQ.MAMH)
+	SELECT COUNT(DISTINCT KQ2.MAMH)
 	FROM KETQUATHI AS KQ2
 	JOIN HOCVIEN AS HV2
-		ON KQ2.MAHV = HV2.MAHV
-	JOIN LOP AS L2
-		ON L2.MALOP = HV2.MALOP
-	WHERE KQ2.DIEM IN (9,10)
-		AND L.MALOP = L2.MALOP -- Đảm bảo kiểm tra trong cùng 1 lớp 
-							   -- --> Tìm ra học viên có số lượng điểm 9, 10 nhiều nhất trong 1 lớp
-	GROUP BY HV2.MAHV
+	ON KQ2.MAHV = HV2.MAHV
+	WHERE KQ2.DIEM IN (9, 10)
+		AND HV2.MALOP = HV.MALOP -- Đảm bảo kiểm tra cho từng lớp
+	GROUP BY KQ2.MAHV
 );
 
 ----------------------------- Cau 28 ---------------------------
@@ -222,24 +234,18 @@ GROUP BY GD.NAM, GD.HOCKY, GD.MAGV;
 
 ----------------------------- Cau 29 ---------------------------
 -- Trong từng học kỳ của từng năm, tìm giáo viên (mã giáo viên, họ tên) giảng dạy nhiều nhất. 
-SELECT GD.NAM AS [Nam],
-	   GD.HOCKY AS [HocKy],
-	   GV.MAGV AS [MaGiaoVien],
-	   GV.HOTEN AS [HoTen],
-	   COUNT(DISTINCT GD.MALOP) AS [SoLuongLop]
-FROM GIANGDAY AS GD 
-JOIN GIAOVIEN AS GV
-ON GD.MAGV = GV.MAGV
-GROUP BY GD.NAM, GD.HOCKY, GV.MAGV, GV.HOTEN
-HAVING COUNT(DISTINCT GD.MALOP) = (
-	SELECT MAX(Subquery.SoLuong)
-	FROM (
-		SELECT COUNT(DISTINCT GD2.MALOP) AS [SoLuong]
-		FROM GIANGDAY AS GD2
-		WHERE GD2.NAM = GD.NAM			-- Đảm bảo cùng 1 năm
-			AND GD2.HOCKY = GD.HOCKY	-- Đảm bảo cùng 1 học kỳ
-		GROUP BY GD2.MAGV
-	) AS Subquery
+SELECT GD.NAM AS [Năm],
+	   GD.HOCKY AS [Học kỳ],
+	   GD.MAGV AS [Mã giáo viên],
+	   COUNT(DISTINCT GD.MALOP) AS [Số lớp]
+FROM GIANGDAY AS GD
+GROUP BY GD.NAM, GD.HOCKY, GD.MAGV
+HAVING COUNT(DISTINCT GD.MALOP) >= ALL (
+	SELECT COUNT(DISTINCT GD2.MALOP)
+	FROM GIANGDAY AS GD2
+	WHERE GD2.NAM = GD.NAM -- Đảm bảo cùng 1 năm
+		AND GD2.HOCKY = GD.HOCKY -- Đảm bảo cùng 1 học kỳ
+	GROUP BY GD2.NAM, GD2.HOCKY, GD2.MAGV
 );
 
 ---------------------------- Cau 30 --------------------------
@@ -260,6 +266,7 @@ HAVING COUNT(DISTINCT GD.MALOP) = (
 
 */
 
+-- C1:
 SELECT TOP 1 WITH TIES Subquery.MaMonHoc, Subquery.TenMonHoc
 FROM (
 	SELECT MH.MAMH AS [MaMonHoc],
@@ -274,6 +281,23 @@ FROM (
 ) Subquery
 ORDER BY Subquery.SoLuongHocVien DESC;
 
+-- C2:
+SELECT MH.MAMH AS [Mã môn học],
+	   MH.TENMH AS [Tên môn học]
+FROM MONHOC AS MH
+JOIN KETQUATHI AS KQ
+ON KQ.MAMH = MH.MAMH
+WHERE KQ.KQUA = 'Khong dat'	
+	AND KQ.LANTHI = 1
+GROUP BY MH.MAMH, MH.TENMH
+HAVING COUNT(DISTINCT KQ.MAHV) >= ALL (
+	SELECT COUNT(DISTINCT KQ2.MAHV)
+	FROM KETQUATHI AS KQ2
+	WHERE KQ2.KQUA = 'Khong dat'
+		AND KQ2.LANTHI = 1
+	GROUP BY KQ2.MAMH
+);
+
 --------------------------- Cau 31 ------------------------
 -- Tìm học viên (mã học viên, họ tên) thi môn nào cũng đạt (chỉ xét lần thi thứ 1).
 
@@ -287,16 +311,21 @@ WHERE KQ.LANTHI = 1
 */
 
 -- Sử dụng NOT EXISTS
-SELECT HV.MAHV AS [MaHocVien],
-	   (Hv.HO + ' ' + HV.TEN) AS [HoTen]
+SELECT HV.MAHV AS [Mã học viên],
+	   (HV.HO + ' ' + HV.TEN) AS [Họ tên]
 FROM HOCVIEN AS HV
-WHERE NOT EXISTS (
-	SELECT *  
-	FROM KETQUATHI AS KQ
-	WHERE KQ.LANTHI = 1
-		AND KQ.KQUA = 'Khong dat'
-		AND HV.MAHV = KQ.MAHV -- Đảm bảo học viên đang xét không có môn nào không đạt ở lần 1
-);
+JOIN KETQUATHI AS KQ
+ON KQ.MAHV = HV.MAHV
+WHERE KQ.LANTHI = 1
+	AND NOT EXISTS (
+		SELECT *
+		FROM KETQUATHI AS KQ2
+		WHERE KQ2.MAHV = KQ.MAHV -- Đảm bảo  cùng học viên
+			AND KQ2.LANTHI = 1
+			AND KQ2.MAMH = KQ.MAMH -- Đảm bảo cùng môn học
+			AND KQ2.KQUA = 'Khong dat'
+	)
+GROUP BY HV.MAHV, (HV.HO + ' ' + HV.TEN);
 
 ------------------------------- Cau 32 -------------------------------
 -- * Tìm học viên (mã học viên, họ tên) thi môn nào cũng đạt (chỉ xét lần thi sau cùng). 
@@ -304,21 +333,24 @@ WHERE NOT EXISTS (
 -- Lưu ý: Thi môn nào cũng đạt nghĩa là những môn mà học viên đó thi, 
 -- ==> Những môn đó đề đạt ở lần thi cuối cùng
 
-SELECT HV.MAHV AS [MaHocVien],
-	   (HV.HO + ' ' + HV.TEN) AS [HoTen]
+SELECT HV.MAHV AS [Mã học viên],
+	   (HV.HO + ' ' + HV.TEN) AS [Họ tên]
 FROM HOCVIEN AS HV
+JOIN KETQUATHI AS KQ
+ON KQ.MAHV = HV.MAHV
 WHERE NOT EXISTS (
 	SELECT *
-	FROM KETQUATHI AS KQ
-	WHERE KQ.MAHV = HV.MAHV
-		AND KQ.KQUA = 'Khong dat'
-		AND KQ.LANTHI = (				-- Truy vấn lần thi sau cùng
-			SELECT MAX(KQ2.LANTHI)
-			FROM KETQUATHI AS KQ2
-			WHERE KQ2.MAHV = KQ.MAHV
-				AND KQ2.MAMH = KQ.MAMH
+	FROM KETQUATHI AS KQ2
+	WHERE KQ2.MAHV = KQ.MAHV
+		AND KQ2.KQUA = 'Khong dat'
+		AND KQ2.LANTHI >= ALL ( -- Truy vấn lần thi sau cùng
+			SELECT KQ3.LANTHI
+			FROM KETQUATHI AS KQ3
+			WHERE KQ3.MAHV = KQ2.MAHV
+				AND KQ3.MAMH = KQ2.MAMH
 		)
-);
+)
+GROUP BY HV.MAHV, (HV.HO + ' ' + HV.TEN); 
 
 ---------------------------- Cau 33 --------------------------
 -- * Tìm học viên (mã học viên, họ tên) đã thi tất cả các môn đều đạt (chỉ xét lần thi thứ 1). 
