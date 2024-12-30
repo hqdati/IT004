@@ -1,4 +1,4 @@
-﻿USE QuanLyGiaoVu;
+USE QuanLyGiaoVu;
 
 -------------------------------- Bai Tap 2 ----------------------------------
 -- Phần I bài tập QuanLyGiaoVu câu 9, 10, và từ câu 15 đến câu 24
@@ -1184,7 +1184,7 @@ WHERE MALOP = 'K11' AND MAMH = 'CSDL';
 -- khi học xong những môn học phải học trước mới được học những môn liền sau). 
 
 -- Bối cảnh: GIANGDAY, DIEUKIEN
--- GIANGDAY: INSERT, DELETE
+-- GIANGDAY: INSERT
 
 -- GIANGDAY: INSERT
 CREATE TRIGGER PHANCONG_GIANGDAY_INSERT
@@ -1192,76 +1192,60 @@ ON GIANGDAY
 FOR INSERT
 AS
 BEGIN
-    DECLARE @MALOP CHAR(3), @MAMH VARCHAR(10), @NAM SMALLINT, @HOCKY TINYINT
+	DECLARE @MALOP CHAR(3), @MAMH VARCHAR(10), @HOCKY TINYINT, @NAM SMALLINT, @CHECK TINYINT, @MAMH_TRUOC VARCHAR(10)
 
-    -- Gán giá trị
-    SELECT @MALOP = MALOP, @MAMH = MAMH, @NAM = NAM, @HOCKY = HOCKY
-    FROM inserted
+	SET @CHECK = 1
 
-    -- Kiểm tra có môn học tiên quyết không
-    IF EXISTS (
-        SELECT *
-        FROM DIEUKIEN DK
-        WHERE DK.MAMH = @MAMH
-    )
-    BEGIN
-        -- Tồn tại môn học tiên quyết --> kiểm tra xem các môn học tiên quyết đã được giảng dạy chưa
-        IF NOT EXISTS (
-            SELECT *
-            FROM DIEUKIEN DK
-            JOIN GIANGDAY GD ON GD.MAMH = DK.MAMH_TRUOC
-            WHERE GD.MALOP = @MALOP AND DK.MAMH = @MAMH AND GD.NAM <= @NAM AND GD.HOCKY <= @HOCKY
-        )
-        BEGIN
-            PRINT 'KHONG THOA DIEU KIEN: PHAN CONG GIANG DAY MOT MON HOC, PHAI XET DEN THU TU TRUOC SAU GIUA CAC MON --> INSERT KHONG THANH CONG'
-            ROLLBACK TRANSACTION;
-        END
-        ELSE 
-        BEGIN
-            PRINT 'THOA DIEU KIEN: PHAN CONG GIANG DAY MOT MON HOC, PHAI XET DEN THU TU TRUOC SAU GIUA CAC MON --> INSERT THANH CONG'
-        END
-    END
+	SELECT @MALOP = MALOP, @MAMH = MAMH, @HOCKY = HOCKY, @NAM = NAM
+	FROM inserted
+
+	-- Nếu môn học được phân công tồn tại môn học tiên quyết
+	--> Thực hiện kiểm tra 
+	IF EXISTS (
+		SELECT *
+		FROM DIEUKIEN AS DK
+		WHERE DK.MAMH = @MAMH
+	)
+	BEGIN
+		-- Tạo cursor lưu tập các mã môn học trước của môn học vừa được phân công giảng dạy
+		DECLARE MaMonHocTruoc_Cursor CURSOR FOR
+			SELECT DK.MAMH_TRUOC
+			FROM DIEUKIEN AS DK
+			WHERE DK.MAMH = @MAMH
+
+		OPEN MaMonHocTruoc_Cursor
+
+		-- Kiểm tra điều kiện
+		FETCH NEXT FROM MaMonHocTruoc_Cursor INTO @MAMH_TRUOC
+
+		WHILE (@@FETCH_STATUS = 0)
+		BEGIN
+			IF NOT EXISTS (
+				SELECT *
+				FROM GIANGDAY AS GD
+				WHERE GD.MALOP = @MALOP
+					AND GD.MAMH = @MAMH_TRUOC
+					AND (GD.NAM < @NAM OR (GD.NAM = @NAM AND GD.HOCKY < @HOCKY))
+			)
+			BEGIN
+				SET @CHECK = 0
+				BREAK
+			END
+		END
+
+		CLOSE MaMonHocTruoc_Cursor
+		DEALLOCATE MaMonHocTruoc_Cursor
+
+		IF (@CHECK = 0)
+		BEGIN
+			PRINT N'DO CHƯA HỌC ĐỦ MÔN HỌC TIÊN QUYẾT NÊN KHÔNG THỂ PHÂN CÔNG GIẢNG DẠY MÔN HỌC NÀY'
+			ROLLBACK TRANSACTION;
+		END
+	END
+	
 END
-
 
 DROP TRIGGER PHANCONG_GIANGDAY_INSERT;
-
--- GIANGDAY: DELETE 
-CREATE TRIGGER PHANCONG_GIANGDAY_DELETE
-ON GIANGDAY
-FOR DELETE
-AS 
-BEGIN
-    DECLARE @MALOP CHAR(3), @MAMH VARCHAR(10)
-
-    -- Gán giá trị
-    SELECT @MALOP = MALOP, @MAMH = MAMH
-    FROM deleted
-
-    -- Kiểm tra có môn học tiên quyết không
-    IF EXISTS (
-        SELECT *
-        FROM DIEUKIEN DK
-        WHERE DK.MAMH_TRUOC = @MAMH
-    )
-    BEGIN
-        -- Tồn tại môn học tiên quyết --> kiểm tra xem các môn học tiên quyết đã được giảng dạy chưa
-        IF EXISTS (
-            SELECT *
-            FROM DIEUKIEN DK
-            JOIN GIANGDAY GD ON GD.MAMH = DK.MAMH
-            WHERE GD.MALOP = @MALOP AND DK.MAMH_TRUOC = @MAMH
-        )
-        BEGIN
-            PRINT 'KHONG THOA DIEU KIEN: MON HOC LA DIEU KIEN TIEN QUYET CUA MON KHAC --> DELETE KHONG THANH CONG'
-            ROLLBACK TRANSACTION;
-        END
-        ELSE 
-        BEGIN
-            PRINT 'THOA DIEU KIEN: MON HOC KHONG PHAI LA DIEU KIEN TIEN QUYET CUA MON KHAC --> DELETE THANH CONG'
-        END
-    END
-END
 
 ------------------------------ Cau 18 --------------------------
 -- Trong quan hệ DIEUKIEN giá trị của thuộc tính MAMH và MAMH_TRUOC trong cùng 
